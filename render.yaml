@@ -4,9 +4,15 @@ services:
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    pythonVersion: 3.11
     envVars:
       - key: MONGO_URL
-        value: mongodb+srv://emichavezara:z0qgHribTsAnBWhk@cluster0.cs1uja3.mongodb.net/
+        value: ${MONGO_URL}
       - key: JWT_SECRET_KEY
-        value: UHCDJNPAJSA28663gnkdmpdp-pk
+        value: ${JWT_SECRET_KEY}
       # Add other environment variables as needed
+
+
+
+
+
