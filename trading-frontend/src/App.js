@@ -252,11 +252,11 @@ const TradingInterface = ({ user, tradingMode, onNotification, fetchAccountInfo 
   const [symbolValidating, setSymbolValidating] = useState(false);
 
 
-  useEffect(() => {
-    fetchAccountInfo();
-    fetchPositions();
-    fetchOrders();
-  }, [tradingMode, user, fetchAccountInfo]);
+ useEffect(() => {
+   fetchAccountInfo();
+   fetchPositions();
+   fetchOrders();
+ }, [tradingMode, fetchAccountInfo, fetchPositions, fetchOrders]);
 
 
   // Validate symbol when it changes
