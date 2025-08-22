@@ -655,7 +655,7 @@ const TradingCharts = ({ user, watchlistSymbols, tradingMode, fetchChartData }) 
       fetchChartData();
       fetchUserTrades();
     }
-}, [selectedSymbol, timeframe, user, fetchChartData, fetchUserTrades]);
+}, [selectedSymbol, timeframe, user, fetchChartData, tradingMode,]);
 
   const fetchChartData = useCallback(async () => {
     setLoading(true);
