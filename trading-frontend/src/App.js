@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -47,36 +47,29 @@ const Header = ({ user, onLogout, onSwitchMode, tradingMode }) => (
       </div>
     </div>
   </header>
+
 );
 
-
 const LoginForm = ({ onLogin, onSwitchToRegister }) => {
-  const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  try {
-    const response = await axios.post('/api/auth/login', { email, password, remember_me: rememberMe });
-    // Store token in localStorage if rememberMe, else sessionStorage
-    if (rememberMe) {
-      localStorage.setItem('token', response.data.access_token);
-    } else {
-      sessionStorage.setItem('token', response.data.access_token);
+    try {
+      const response = await axios.post('/api/auth/login', { email, password });
+      onLogin(response.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
-    onLogin(response.data);
-  } catch (err) {
-    setError(err.response?.data?.detail || 'Authentication failed');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="auth-container">
@@ -118,19 +111,6 @@ const handleSubmit = async (e) => {
               required
             />
           </div>
-
-          <div className="form-group flex items-center">
-            <input
-              id="rememberMe"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={e => setRememberMe(e.target.checked)}
-              className="form-checkbox h-4 w-4 text-gold transition duration-150"
-            />
-            <label htmlFor="rememberMe" className="ml-2 text-sm text-gold">
-              Remember Me
-            </label>
-          </div>
           
           <button
             type="submit"
@@ -156,7 +136,6 @@ const handleSubmit = async (e) => {
 };
 
 const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
-  const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -222,19 +201,6 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
               required
             />
           </div>
-
-          <div className="form-group flex items-center">
-            <input
-              id="rememberMe"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={e => setRememberMe(e.target.checked)}
-              className="form-checkbox h-4 w-4 text-gold transition duration-150"
-            />
-            <label htmlFor="rememberMe" className="ml-2 text-sm text-gold">
-              Remember Me
-            </label>
-         </div>
           
           <div className="form-group">
             <label className="form-label">Password</label>
@@ -270,7 +236,7 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
   );
 };
 
-const TradingInterface = ({ user, tradingMode, onNotification }) => {
+const TradingInterface = ({ user, tradingMode, onNotification, fetchAccountInfo }) => {
   const [accountInfo, setAccountInfo] = useState(null);
   const [positions, setPositions] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -285,11 +251,13 @@ const TradingInterface = ({ user, tradingMode, onNotification }) => {
   const [symbolValidation, setSymbolValidation] = useState({ valid: true, message: '' });
   const [symbolValidating, setSymbolValidating] = useState(false);
 
+
   useEffect(() => {
     fetchAccountInfo();
     fetchPositions();
     fetchOrders();
-  }, [tradingMode]);
+  }, [tradingMode, user, fetchAccountInfo]);
+
 
   // Validate symbol when it changes
   useEffect(() => {
@@ -299,13 +267,14 @@ const TradingInterface = ({ user, tradingMode, onNotification }) => {
         return;
       }
 
+
       setSymbolValidating(true);
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get(`/api/trading/validate-symbol/${orderForm.symbol}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        
+       
         setSymbolValidation({
           valid: response.data.tradable,
           message: response.data.message
@@ -320,9 +289,11 @@ const TradingInterface = ({ user, tradingMode, onNotification }) => {
       }
     };
 
+
     const timeoutId = setTimeout(validateSymbol, 500); // Debounce validation
     return () => clearTimeout(timeoutId);
   }, [orderForm.symbol]);
+
 
   const fetchAccountInfo = async () => {
     try {
@@ -362,6 +333,8 @@ const TradingInterface = ({ user, tradingMode, onNotification }) => {
       console.error('Error fetching orders:', error);
     }
   };
+
+
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
@@ -670,7 +643,7 @@ const TradingInterface = ({ user, tradingMode, onNotification }) => {
   );
 };
 
-const TradingCharts = ({ user, watchlistSymbols, tradingMode }) => {
+const TradingCharts = ({ user, watchlistSymbols, tradingMode, fetchChartData }) => {
   const [selectedSymbol, setSelectedSymbol] = useState(watchlistSymbols[0] || 'AAPL');
   const [chartData, setChartData] = useState([]);
   const [timeframe, setTimeframe] = useState('1D');
@@ -682,13 +655,11 @@ const TradingCharts = ({ user, watchlistSymbols, tradingMode }) => {
       fetchChartData();
       fetchUserTrades();
     }
-  }, [selectedSymbol, timeframe]);
+}, [selectedSymbol, timeframe, user, fetchChartData, fetchUserTrades]);
 
-  const fetchChartData = async () => {
+  const fetchChartData = useCallback(async () => {
     setLoading(true);
     try {
-      // For now, we'll simulate chart data since we need a charting API
-      // In production, you'd integrate with a proper charting service
       const mockData = generateMockChartData(selectedSymbol);
       setChartData(mockData);
     } catch (error) {
@@ -696,38 +667,27 @@ const TradingCharts = ({ user, watchlistSymbols, tradingMode }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSymbol]);
 
-  const fetchUserTrades = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      // This would fetch user's historical trades for the symbol
-      // For now, we'll use mock data
-      const mockTrades = [
-        {
-          id: '1',
-          symbol: selectedSymbol,
-          side: 'buy',
-          quantity: 100,
-          price: 150.25,
-          date: new Date('2024-01-15'),
-          type: 'entry'
-        },
-        {
-          id: '2', 
-          symbol: selectedSymbol,
-          side: 'sell',
-          quantity: 50,
-          price: 165.80,
-          date: new Date('2024-02-01'),
-          type: 'exit'
-        }
-      ];
-      setTrades(mockTrades);
-    } catch (error) {
-      console.error('Error fetching trades:', error);
+const fetchUserTrades = useCallback(async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`/api/trading/user-trades/${selectedSymbol}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setTrades(response.data.trades || []);
+  } catch (error) {
+    console.error('Error fetching trades:', error);
+    setTrades([]);
+  }
+}, [selectedSymbol]);
+
+    useEffect(() => {
+    if (selectedSymbol) {
+      fetchChartData();
+      fetchUserTrades();
     }
-  };
+  }, [selectedSymbol, timeframe, fetchChartData, fetchUserTrades]);
 
   const generateMockChartData = (symbol) => {
     // Generate mock OHLC data
@@ -960,7 +920,7 @@ const TradingCharts = ({ user, watchlistSymbols, tradingMode }) => {
   );
 }; 
 
-const NewsCenter = ({ user }) => {
+const NewsCenter = ({ user, fetchNews}) => {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeNewsTab, setActiveNewsTab] = useState('market');
@@ -969,9 +929,9 @@ const NewsCenter = ({ user }) => {
 
   useEffect(() => {
     fetchNews();
-  }, [activeNewsTab, selectedCategory]);
+  }, [activeNewsTab, selectedCategory, fetchNews]);
 
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -1005,7 +965,11 @@ const NewsCenter = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeNewsTab, selectedCategory]);
+
+    useEffect(() => {
+    fetchNews();
+  }, [activeNewsTab, selectedCategory, fetchNews]);
 
   const searchNews = async () => {
     if (!searchQuery.trim()) {

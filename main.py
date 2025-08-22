@@ -1085,8 +1085,38 @@ async def get_orders(current_user: dict = Depends(get_current_user)):
         return {"orders": order_list}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching orders: {str(e)}")
+    
+@app.get("/api/trading/user-trades/{symbol}")
+async def get_user_trades(symbol: str, current_user: dict = Depends(get_current_user)):
+    """
+    Return all trades for the current user and the given symbol.
+    """
+    try:
+        # Fetch trades from your MongoDB collection
+        trades = await trades_collection.find({
+            "user_email": current_user["email"],
+            "symbol": symbol.upper()
+        }).sort("executed_at", -1).to_list(100)
 
-# Data Export Routes  
+        # Format the trades as a list of dicts (if needed)
+        formatted_trades = [
+            {
+                "symbol": trade.get("symbol"),
+                "side": trade.get("side"),
+                "quantity": trade.get("quantity"),
+                "price": trade.get("price"),
+                "order_id": trade.get("order_id"),
+                "executed_at": trade.get("executed_at"),
+                "trading_mode": trade.get("trading_mode"),
+            }
+            for trade in trades
+        ]
+
+        return {"trades": formatted_trades}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user trades: {str(e)}")
+    
+# Data Export Routes
 @app.get("/api/export/trading-data")
 async def export_trading_data(format: str = "xlsx", current_user: dict = Depends(get_current_user)):
     """Export trading data to Excel or CSV"""
@@ -1596,3 +1626,6 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 8001))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+    
